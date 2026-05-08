@@ -1,0 +1,847 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>番茄钟 - Pomodoro Timer</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  background: #1a1a2e;
+  color: #eee;
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.container {
+  width: 100%;
+  max-width: 520px;
+  padding: 30px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+}
+
+/* ---- title ---- */
+h1 {
+  font-size: 1.6rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: #ccc;
+}
+
+/* ---- timer display ---- */
+.timer-ring {
+  position: relative;
+  width: 260px;
+  height: 260px;
+}
+
+.timer-ring svg {
+  transform: rotate(-90deg);
+  width: 100%;
+  height: 100%;
+}
+
+.timer-ring .track {
+  fill: none;
+  stroke: #2a2a3c;
+  stroke-width: 10;
+}
+
+.timer-ring .progress {
+  fill: none;
+  stroke: #e74c3c;
+  stroke-width: 10;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 0.3s linear, stroke 0.4s;
+}
+
+.timer-text {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 4px;
+}
+
+.timer-text .time {
+  font-size: 3.6rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+
+.timer-text .label {
+  font-size: 0.85rem;
+  color: #999;
+  letter-spacing: 0.08em;
+}
+
+/* ---- mode selector ---- */
+.mode-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.mode-btn {
+  padding: 8px 18px;
+  border: 1px solid #444;
+  border-radius: 20px;
+  background: transparent;
+  color: #aaa;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: all 0.2s;
+}
+.mode-btn:hover { border-color: #888; color: #ddd; }
+.mode-btn.active { background: #e74c3c; border-color: #e74c3c; color: #fff; }
+
+.custom-wrap {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 4px;
+}
+.custom-wrap input {
+  width: 46px;
+  padding: 6px 4px;
+  text-align: center;
+  border: 1px solid #444;
+  border-radius: 10px;
+  background: #2a2a3c;
+  color: #eee;
+  font-size: 0.85rem;
+}
+.custom-wrap span { color: #888; font-size: 0.8rem; }
+
+/* ---- controls ---- */
+.controls {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+}
+
+.ctrl-btn {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  font-size: 1.2rem;
+  transition: transform 0.15s, box-shadow 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.ctrl-btn:hover { transform: scale(1.06); }
+.ctrl-btn:active { transform: scale(0.96); }
+.ctrl-btn:disabled { opacity: 0.35; cursor: not-allowed; transform: none; }
+
+.btn-start  { background: #e74c3c; color: #fff; box-shadow: 0 0 18px rgba(231,76,60,0.45); }
+.btn-pause  { background: #f39c12; color: #fff; box-shadow: 0 0 18px rgba(243,156,18,0.45); }
+.btn-resume { background: #2ecc71; color: #fff; box-shadow: 0 0 18px rgba(46,204,113,0.45); }
+.btn-stop   { background: #555;  color: #fff; }
+
+/* ---- session counter ---- */
+.session-info {
+  font-size: 0.85rem;
+  color: #777;
+  letter-spacing: 0.03em;
+}
+
+/* ---- noise section ---- */
+.noise-section {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.noise-label {
+  font-size: 0.85rem;
+  color: #888;
+  letter-spacing: 0.05em;
+  text-align: center;
+}
+
+.noise-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px;
+}
+
+.noise-btn {
+  padding: 10px 4px;
+  border: 1px solid #333;
+  border-radius: 10px;
+  background: #222235;
+  color: #aaa;
+  cursor: pointer;
+  font-size: 0.7rem;
+  text-align: center;
+  transition: all 0.2s;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+.noise-btn .icon { font-size: 1.1rem; }
+.noise-btn:hover { border-color: #666; color: #ddd; }
+.noise-btn.active { border-color: #8e44ad; background: #2d1a3a; color: #d4a0ff; }
+
+.volume-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  justify-content: center;
+}
+.volume-row .vol-icon { font-size: 0.9rem; color: #888; }
+.volume-row input[type=range] {
+  -webkit-appearance: none;
+  width: 160px;
+  height: 4px;
+  border-radius: 2px;
+  background: #333;
+  outline: none;
+}
+.volume-row input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #8e44ad;
+  cursor: pointer;
+  border: none;
+}
+
+/* ---- notification permission ---- */
+.notify-hint {
+  font-size: 0.75rem;
+  color: #555;
+  cursor: pointer;
+  text-decoration: underline;
+  margin-top: 4px;
+}
+.notify-hint:hover { color: #888; }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <h1>🍅 番茄钟</h1>
+
+  <!-- Timer Circle -->
+  <div class="timer-ring">
+    <svg viewBox="0 0 260 260">
+      <circle class="track" cx="130" cy="130" r="118"/>
+      <circle class="progress" id="progressCircle" cx="130" cy="130" r="118"
+              stroke-dasharray="741.4" stroke-dashoffset="0"/>
+    </svg>
+    <div class="timer-text">
+      <span class="time" id="timeDisplay">25:00</span>
+      <span class="label" id="statusLabel">准备就绪</span>
+    </div>
+  </div>
+
+  <!-- Duration Modes -->
+  <div class="mode-row">
+    <button class="mode-btn active" data-min="25">专注 25</button>
+    <button class="mode-btn" data-min="15">专注 15</button>
+    <button class="mode-btn" data-min="5">短休息 5</button>
+    <button class="mode-btn" data-min="30">长休息 30</button>
+    <span class="custom-wrap">
+      <input type="number" id="customMin" min="1" max="120" value="45" placeholder="自定义">
+      <span>分钟</span>
+    </span>
+  </div>
+
+  <!-- Controls -->
+  <div class="controls">
+    <button class="ctrl-btn btn-start"  id="btnStart"  title="开始">▶</button>
+    <button class="ctrl-btn btn-pause"  id="btnPause"  title="暂停" disabled>⏸</button>
+    <button class="ctrl-btn btn-resume" id="btnResume" title="继续" disabled>▶</button>
+    <button class="ctrl-btn btn-stop"   id="btnStop"   title="停止" disabled>⏹</button>
+  </div>
+
+  <!-- Session Counter -->
+  <div class="session-info" id="sessionInfo">已完成 0 个番茄</div>
+
+  <!-- White Noise Selector -->
+  <div class="noise-section">
+    <div class="noise-label">🎵 背景白噪音</div>
+    <div class="noise-grid" id="noiseGrid">
+      <button class="noise-btn" data-noise="white">  <span class="icon">📡</span>白噪音</button>
+      <button class="noise-btn" data-noise="pink">  <span class="icon">🌊</span>粉噪音</button>
+      <button class="noise-btn" data-noise="brown"> <span class="icon">🌑</span>棕噪音</button>
+      <button class="noise-btn" data-noise="rain">  <span class="icon">🌧</span>雨声</button>
+      <button class="noise-btn" data-noise="ocean"> <span class="icon">🏖</span>海浪</button>
+      <button class="noise-btn" data-noise="fan">   <span class="icon">🌀</span>风扇</button>
+      <button class="noise-btn" data-noise="wind">  <span class="icon">💨</span>风声</button>
+      <button class="noise-btn" data-noise="stream"><span class="icon">💧</span>溪流</button>
+      <button class="noise-btn" data-noise="cricket"><span class="icon">🦗</span>蟋蟀</button>
+      <button class="noise-btn" data-noise="bowl">  <span class="icon">🔔</span>颂钵</button>
+    </div>
+    <div class="volume-row">
+      <span class="vol-icon">🔈</span>
+      <input type="range" id="volumeSlider" min="0" max="100" value="40">
+      <span class="vol-icon">🔊</span>
+    </div>
+  </div>
+
+  <span class="notify-hint" id="notifyHint">🔔 点击启用桌面通知</span>
+</div>
+
+<script>
+// ==================== White Noise Engine ====================
+class NoiseEngine {
+  constructor() {
+    this.ctx = null;
+    this.activeNoise = null;
+    this._volume = 0.4;
+    this.masterGain = null;
+    this.nodes = [];       // disposable nodes
+    this._playing = false;
+  }
+
+  get volume() { return this._volume; }
+  set volume(v) {
+    this._volume = v;
+    if (this.masterGain) this.masterGain.gain.setValueAtTime(v, this.ctx.currentTime);
+  }
+
+  _ensureCtx() {
+    if (!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+    if (this.ctx.state === 'suspended') this.ctx.resume();
+  }
+
+  _createMaster() {
+    if (this.masterGain) return;
+    this.masterGain = this.ctx.createGain();
+    this.masterGain.gain.value = this._volume;
+    this.masterGain.connect(this.ctx.destination);
+  }
+
+  _noiseBuffer(durationSec = 4) {
+    const sr = this.ctx.sampleRate;
+    const len = sr * durationSec;
+    const buf = this.ctx.createBuffer(1, len, sr);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) data[i] = Math.random() * 2 - 1;
+    return buf;
+  }
+
+  _noiseSource(buf, loop = true) {
+    const src = this.ctx.createBufferSource();
+    src.buffer = buf;
+    src.loop = loop;
+    this.nodes.push(src);
+    return src;
+  }
+
+  _gain(val = 1) {
+    const g = this.ctx.createGain();
+    g.gain.value = val;
+    this.nodes.push(g);
+    return g;
+  }
+
+  _filter(type, freq, Q = 1) {
+    const f = this.ctx.createBiquadFilter();
+    f.type = type;
+    f.frequency.value = freq;
+    f.Q.value = Q;
+    this.nodes.push(f);
+    return f;
+  }
+
+  // ---- 10 noise presets ----
+  white() {
+    const buf = this._noiseBuffer(3);
+    const src = this._noiseSource(buf);
+    const gain = this._gain(0.5);
+    src.connect(gain).connect(this.masterGain);
+    src.start();
+  }
+
+  pink() {
+    // Pink noise via filtering white noise through -3dB/oct low shelf
+    const buf = this._noiseBuffer(4);
+    const src = this._noiseSource(buf);
+    const lp = this._filter('lowpass', 22000, 0);
+    // Combine multiple filtered copies for pink profile
+    const lp2 = this._filter('lowpass', 4000, 0.5);
+    const lp3 = this._filter('lowpass', 800, 0.5);
+    const gain = this._gain(0.35);
+    src.connect(lp);
+    lp.connect(lp2);
+    lp2.connect(lp3);
+    lp3.connect(gain).connect(this.masterGain);
+    src.start();
+  }
+
+  brown() {
+    const buf = this._noiseBuffer(4);
+    const src = this._noiseSource(buf);
+    const lp = this._filter('lowpass', 300, 0.7);
+    const lp2 = this._filter('lowpass', 200, 0.5);
+    const gain = this._gain(0.5);
+    src.connect(lp).connect(lp2).connect(gain).connect(this.masterGain);
+    src.start();
+  }
+
+  rain() {
+    const buf = this._noiseBuffer(2);
+    const src = this._noiseSource(buf);
+    const bp = this._filter('bandpass', 3000, 0.3);
+    const hp = this._filter('highpass', 1000);
+    // Modulate volume for "splatter" effect
+    const lfo = this.ctx.createOscillator();
+    lfo.frequency.value = 3;
+    lfo.type = 'sawtooth';
+    const lfoGain = this._gain(0.4);
+    const baseGain = this._gain(0.25);
+    lfo.connect(lfoGain);
+    lfoGain.connect(baseGain.gain);
+    src.connect(hp).connect(bp).connect(baseGain).connect(this.masterGain);
+    lfo.start();
+    this.nodes.push(lfo);
+    src.start();
+  }
+
+  ocean() {
+    const buf = this._noiseBuffer(4);
+    const src = this._noiseSource(buf);
+    const lp = this._filter('lowpass', 800, 0.6);
+    // Slow amplitude modulation to simulate waves
+    const lfo = this.ctx.createOscillator();
+    lfo.frequency.value = 0.12; // ~8 sec cycle
+    lfo.type = 'sine';
+    const lfoGain = this._gain(0.5);
+    const baseGain = this._gain(0.5);
+    lfo.connect(lfoGain);
+    lfoGain.connect(baseGain.gain);
+    src.connect(lp).connect(baseGain).connect(this.masterGain);
+    lfo.start();
+    this.nodes.push(lfo);
+    src.start();
+  }
+
+  fan() {
+    const buf = this._noiseBuffer(3);
+    const src = this._noiseSource(buf);
+    const lp = this._filter('lowpass', 600, 0.5);
+    // Add a subtle tone for motor hum
+    const osc = this.ctx.createOscillator();
+    osc.frequency.value = 120;
+    osc.type = 'sine';
+    const oscGain = this._gain(0.06);
+    osc.connect(oscGain).connect(this.masterGain);
+    const gain = this._gain(0.4);
+    src.connect(lp).connect(gain).connect(this.masterGain);
+    osc.start();
+    this.nodes.push(osc);
+    src.start();
+  }
+
+  wind() {
+    const buf = this._noiseBuffer(4);
+    const src = this._noiseSource(buf);
+    const bp = this._filter('bandpass', 500, 0.3);
+    // Modulate filter frequency for gust effect
+    const lfo = this.ctx.createOscillator();
+    lfo.frequency.value = 0.08;
+    lfo.type = 'sine';
+    const lfoGain = this._gain(300);
+    lfo.connect(lfoGain);
+    lfoGain.connect(bp.frequency);
+    const gain = this._gain(0.55);
+    src.connect(bp).connect(gain).connect(this.masterGain);
+    lfo.start();
+    this.nodes.push(lfo);
+    src.start();
+  }
+
+  stream() {
+    // Multiple filtered noise sources for babbling brook
+    const buf = this._noiseBuffer(3);
+    [2000, 3500, 5000].forEach(freq => {
+      const src = this._noiseSource(buf);
+      const bp = this._filter('bandpass', freq, 2.5);
+      const gain = this._gain(0.12);
+      src.connect(bp).connect(gain).connect(this.masterGain);
+      src.start();
+    });
+  }
+
+  cricket() {
+    const buf = this._noiseBuffer(2);
+    const src = this._noiseSource(buf);
+    const bp = this._filter('bandpass', 5000, 3);
+    const hp = this._filter('highpass', 3500);
+    // Fast tremolo for cricket chirp feel
+    const lfo = this.ctx.createOscillator();
+    lfo.frequency.value = 7;
+    lfo.type = 'square';
+    const lfoGain = this._gain(0.6);
+    const baseGain = this._gain(0.18);
+    lfo.connect(lfoGain);
+    lfoGain.connect(baseGain.gain);
+    src.connect(hp).connect(bp).connect(baseGain).connect(this.masterGain);
+    lfo.start();
+    this.nodes.push(lfo);
+    src.start();
+  }
+
+  bowl() {
+    // Tibetan singing bowl - layered resonant sine waves
+    [220, 554.4, 880, 1320].forEach((freq, i) => {
+      const osc = this.ctx.createOscillator();
+      osc.frequency.value = freq;
+      osc.type = 'sine';
+      const gain = this._gain(0.06 / (i + 1));
+      // Slow beat for binaural-ish effect
+      const lfo = this.ctx.createOscillator();
+      lfo.frequency.value = 3.5 + i * 1.2;
+      lfo.type = 'sine';
+      const lfoGain = this._gain(0.02);
+      lfo.connect(lfoGain);
+      lfoGain.connect(gain.gain);
+      osc.connect(gain).connect(this.masterGain);
+      osc.start();
+      lfo.start();
+      this.nodes.push(osc, lfo);
+    });
+  }
+
+  // ---- public API ----
+  play(type) {
+    this.stop();
+    this._ensureCtx();
+    this._createMaster();
+    const method = this[type];
+    if (typeof method === 'function') method.call(this);
+    this.activeNoise = type;
+    this._playing = true;
+  }
+
+  pause() {
+    if (this.ctx && this.ctx.state === 'running') this.ctx.suspend();
+  }
+
+  resume() {
+    if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume();
+  }
+
+  stop() {
+    this.nodes.forEach(n => { try { n.stop(); } catch (_) {} });
+    this.nodes.forEach(n => { try { n.disconnect(); } catch (_) {} });
+    this.nodes = [];
+    this.activeNoise = null;
+    this._playing = false;
+  }
+
+  get isPlaying() { return this._playing; }
+}
+
+// ==================== Timer Engine ====================
+class PomodoroTimer {
+  constructor(onTick, onComplete) {
+    this.totalSec = 25 * 60;
+    this.remainingSec = this.totalSec;
+    this.running = false;
+    this.paused = false;
+    this._timerId = null;
+    this._lastTick = null;
+    this.onTick = onTick;
+    this.onComplete = onComplete;
+  }
+
+  setDuration(minutes) {
+    if (this.running || this.paused) return;
+    this.totalSec = minutes * 60;
+    this.remainingSec = this.totalSec;
+    this.onTick(this.remainingSec, this.totalSec);
+  }
+
+  start() {
+    if (this.running && !this.paused) return;
+    if (this.paused) return this.resume();
+
+    this.remainingSec = this.totalSec;
+    this.running = true;
+    this.paused = false;
+    this._lastTick = Date.now();
+    this._schedule();
+    this.onTick(this.remainingSec, this.totalSec);
+  }
+
+  pause() {
+    if (!this.running || this.paused) return;
+    this.paused = true;
+    clearTimeout(this._timerId);
+  }
+
+  resume() {
+    if (!this.running || !this.paused) return;
+    this.paused = false;
+    this._lastTick = Date.now();
+    this._schedule();
+  }
+
+  stop() {
+    this.running = false;
+    this.paused = false;
+    this.remainingSec = this.totalSec;
+    clearTimeout(this._timerId);
+    this.onTick(this.remainingSec, this.totalSec);
+  }
+
+  _schedule() {
+    this._timerId = setTimeout(() => {
+      if (!this.running || this.paused) return;
+      const now = Date.now();
+      const elapsed = Math.floor((now - this._lastTick) / 1000);
+      if (elapsed > 0) {
+        this._lastTick += elapsed * 1000;
+        this.remainingSec = Math.max(0, this.remainingSec - elapsed);
+      }
+      this.onTick(this.remainingSec, this.totalSec);
+
+      if (this.remainingSec <= 0) {
+        this.running = false;
+        this.paused = false;
+        this.onComplete();
+        return;
+      }
+      this._schedule();
+    }, 500);
+  }
+}
+
+// ==================== App ====================
+const $ = (sel) => document.querySelector(sel);
+const C = 741.4; // circumference of r=118 circle
+
+const timeDisplay   = $('#timeDisplay');
+const statusLabel   = $('#statusLabel');
+const progressCircle = $('#progressCircle');
+const sessionInfo   = $('#sessionInfo');
+const btnStart      = $('#btnStart');
+const btnPause      = $('#btnPause');
+const btnResume     = $('#btnResume');
+const btnStop       = $('#btnStop');
+const customInput   = $('#customMin');
+const volumeSlider  = $('#volumeSlider');
+const notifyHint    = $('#notifyHint');
+
+const NOISE_TYPES = ['white','pink','brown','rain','ocean','fan','wind','stream','cricket','bowl'];
+const noise = new NoiseEngine();
+noise.volume = parseFloat(volumeSlider.value) / 100;
+
+let lastNoiseType = localStorage.getItem('pomodoro_noise') || NOISE_TYPES[0];
+let sessionCount = 0;
+let currentMode = 25; // minutes
+
+function formatTime(sec) {
+  const m = Math.floor(sec / 60);
+  const s = sec % 60;
+  return String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+}
+
+function updateDisplay(remaining, total) {
+  timeDisplay.textContent = formatTime(remaining);
+  const offset = C - (remaining / total) * C;
+  progressCircle.style.strokeDashoffset = offset;
+}
+
+function updateProgressColor(min) {
+  if (min <= 5) progressCircle.style.stroke = '#2ecc71';       // short break
+  else if (min >= 30) progressCircle.style.stroke = '#3498db'; // long break
+  else progressCircle.style.stroke = '#e74c3c';                // focus
+}
+
+function setModeButton(min) {
+  document.querySelectorAll('.mode-btn').forEach(b => {
+    const val = parseInt(b.dataset.min);
+    b.classList.toggle('active', val === min);
+  });
+  customInput.value = '';
+  currentMode = min;
+  updateProgressColor(min);
+  timer.setDuration(min);
+  updateDisplay(timer.remainingSec, timer.totalSec);
+  updateButtonStates();
+}
+
+function updateButtonStates() {
+  const running = timer.running && !timer.paused;
+  const paused = timer.paused;
+  btnStart.disabled  = running;
+  btnPause.disabled  = !running;
+  btnResume.disabled = !paused;
+  btnStop.disabled   = !timer.running && !timer.paused;
+
+  if (running)      statusLabel.textContent = '进行中...';
+  else if (paused)  statusLabel.textContent = '已暂停';
+  else              statusLabel.textContent = '准备就绪';
+}
+
+function playChime() {
+  const ctx = new (window.AudioContext || window.webkitAudioContext)();
+  if (ctx.state === 'suspended') ctx.resume();
+  const notes = [523.25, 659.25, 783.99]; // C5 E5 G5
+  notes.forEach((freq, i) => {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.value = freq;
+    gain.gain.setValueAtTime(0, ctx.currentTime + i * 0.15);
+    gain.gain.linearRampToValueAtTime(0.3, ctx.currentTime + i * 0.15 + 0.05);
+    gain.gain.linearRampToValueAtTime(0, ctx.currentTime + i * 0.15 + 0.5);
+    osc.connect(gain).connect(ctx.destination);
+    osc.start(ctx.currentTime + i * 0.15);
+    osc.stop(ctx.currentTime + i * 0.15 + 0.5);
+  });
+}
+
+const timer = new PomodoroTimer(updateDisplay, () => {
+  sessionCount++;
+  sessionInfo.textContent = `已完成 ${sessionCount} 个番茄`;
+  statusLabel.textContent = '完成!';
+  updateButtonStates();
+  updateDisplay(0, timer.totalSec);
+  // Desktop notification
+  if (Notification.permission === 'granted') {
+    new Notification('🍅 番茄钟', { body: '时间到！休息一下吧。', icon: '' });
+  }
+  // Flash effect
+  timeDisplay.style.color = '#2ecc71';
+  setTimeout(() => { timeDisplay.style.color = ''; }, 2000);
+  // Stop noise
+  noise.stop();
+  updateNoiseUI(null);
+  // Completion chime
+  playChime();
+});
+
+// ---- Mode buttons ----
+document.querySelectorAll('.mode-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    if (timer.running || timer.paused) return; // 运行中禁止切换模式
+    const min = parseInt(btn.dataset.min);
+    setModeButton(min);
+  });
+});
+
+// ---- Custom duration ----
+customInput.addEventListener('change', () => {
+  if (timer.running || timer.paused) return;
+  let val = parseInt(customInput.value);
+  if (isNaN(val) || val < 1) val = 25;
+  if (val > 120) val = 120;
+  customInput.value = val;
+  currentMode = val;
+  document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+  updateProgressColor(val);
+  timer.setDuration(val);
+  updateDisplay(timer.remainingSec, timer.totalSec);
+  updateButtonStates();
+});
+
+function autoPlayNoise() {
+  if (!noise.isPlaying) {
+    noise.play(lastNoiseType);
+    updateNoiseUI(lastNoiseType);
+  }
+}
+
+// ---- Controls ----
+btnStart.addEventListener('click', () => {
+  timer.start();
+  autoPlayNoise();
+  statusLabel.textContent = '进行中...';
+  updateButtonStates();
+});
+
+btnPause.addEventListener('click', () => {
+  timer.pause();
+  noise.pause();
+  statusLabel.textContent = '已暂停';
+  updateButtonStates();
+});
+
+btnResume.addEventListener('click', () => {
+  timer.resume();
+  noise.resume();
+  statusLabel.textContent = '进行中...';
+  updateButtonStates();
+});
+
+btnStop.addEventListener('click', () => {
+  timer.stop();
+  noise.stop();
+  updateNoiseUI(null);
+  updateProgressColor(currentMode);
+  updateDisplay(timer.remainingSec, timer.totalSec);
+  updateButtonStates();
+});
+
+// ---- Noise grid ----
+const noiseBtns = document.querySelectorAll('.noise-btn');
+function updateNoiseUI(type) {
+  noiseBtns.forEach(b => b.classList.toggle('active', b.dataset.noise === type));
+}
+
+noiseBtns.forEach(btn => {
+  btn.addEventListener('click', () => {
+    const type = btn.dataset.noise;
+    if (noise.activeNoise === type) {
+      noise.stop();
+      updateNoiseUI(null);
+    } else {
+      noise.play(type);
+      updateNoiseUI(type);
+      lastNoiseType = type;
+      localStorage.setItem('pomodoro_noise', type);
+    }
+  });
+});
+
+// ---- Volume ----
+volumeSlider.addEventListener('input', () => {
+  noise.volume = parseFloat(volumeSlider.value) / 100;
+});
+
+// ---- Notification permission ----
+notifyHint.addEventListener('click', () => {
+  if (window.Notification && Notification.permission === 'default') {
+    Notification.requestPermission().then(perm => {
+      if (perm === 'granted') notifyHint.textContent = '✅ 桌面通知已启用';
+      else notifyHint.textContent = '❌ 通知被拒绝';
+    });
+  } else if (Notification.permission === 'granted') {
+    notifyHint.textContent = '✅ 桌面通知已启用';
+  }
+});
+if (window.Notification && Notification.permission === 'granted') {
+  notifyHint.textContent = '✅ 桌面通知已启用';
+}
+
+// ---- Init ----
+updateDisplay(timer.remainingSec, timer.totalSec);
+updateButtonStates();
+</script>
+</body>
+</html>
